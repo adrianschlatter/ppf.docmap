@@ -1,5 +1,8 @@
 # Include the license file
 include LICENSE
 
+# Include src
+recursive-include src *.py
+
 # Exclude docs (they are needed on github and pypi, not in installation):
 recursive-exclude docs *
