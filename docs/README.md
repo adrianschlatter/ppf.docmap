@@ -1,6 +1,6 @@
 # ppf.docmap
 
-ppf.docmap is a python package to to find links in documents and to crawl
+ppf.docmap is a python package to find links in documents and to crawl
 documents to map dependencies between them.
 
 
