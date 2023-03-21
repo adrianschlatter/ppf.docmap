@@ -47,8 +47,11 @@ test = [
     "coverage"
 ]
 dev = [
-    "check-manifest",
+    "tox",
     "twine"
+]
+dev-conda = [
+    "tox-conda"
 ]
 
 [tool.flake8]
