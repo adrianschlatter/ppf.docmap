@@ -21,3 +21,6 @@ htmlcov/
 
 # due to Mac:
 **/.DS_Store
+
+# stuff that I explicitly don't want to add
+trial_ground/
