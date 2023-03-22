@@ -10,7 +10,10 @@ documents to map dependencies between them.
 
 # import every function, class, etc. that should be visible in the package
 from .docmap import *
+from .filescanners import *
 from .exceptions import *
 
 del docmap
+del filescanners
+del exceptions
 del utils

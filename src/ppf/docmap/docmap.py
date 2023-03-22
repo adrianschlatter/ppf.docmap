@@ -1,74 +1,21 @@
 # -*- coding: utf-8 -*-
 
-from docx import Document
-from docx.opc.constants import RELATIONSHIP_TYPE as RT
 import magic
 import urllib
-import io
-import pdfx
 import graphviz
 from .utils import export
-from .exceptions import OpeningError
-
-
-@export
-class FileScanner():
-    def __init__(self, jabref_keys=None):
-        self.jabref_keys = jabref_keys
-
-    def __call__(self, filename):
-        raise NotImplementedError()
-
-
-@export
-class DOCXScanner(FileScanner):
-    def __init__(self, jabref_keys=None):
-        super().__init__(jabref_keys)
-
-    def __call__(self, url):
-        try:
-            response = urllib.request.urlopen(url)
-        except urllib.error.URLError:
-            raise OpeningError()
-        else:
-            buffer = io.BytesIO(response.read())
-            document = Document(buffer)
-            rels = document.part.rels
-            return [rels[relname].target_ref
-                    for relname in rels
-                    if rels[relname].reltype == RT.HYPERLINK]
-
-
-@export
-class PDFScanner(FileScanner):
-    def __init__(self, jabref_keys=None):
-        super().__init__(jabref_keys)
-
-    def __call__(self, url):
-        if url.find('file:') == 0:
-            url = urllib.parse.unquote(url[5:])
-        try:
-            pdf = pdfx.PDFx(url)
-        except pdfx.DownloadError:
-            raise OpeningError()
-        else:
-            urls = sum(pdf.get_references_as_dict().values(), [])
-            return urls
+from .filescanners import FileScanner
 
 
 @export
 class Crawler():
-    scan_class_reg = {
-        'application/vnd.openxmlformats-officedocument'
-        '.wordprocessingml.document': DOCXScanner,
-        'application/pdf': PDFScanner}
     scan_reg = {}
 
     def __init__(self):
         self.visited_urls = []
         self.dot = graphviz.Digraph()
-        for mime in self.scan_class_reg.keys():
-            self.scan_reg[mime] = self.scan_class_reg[mime]()
+        for mime in FileScanner.registry.keys():
+            self.scan_reg[mime] = FileScanner.registry[mime]()
 
     def __call__(self, url):
         url_hash = str(0)
