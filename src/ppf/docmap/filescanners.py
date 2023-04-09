@@ -8,6 +8,7 @@ from .utils import export
 from .exceptions import OpeningError
 import pdfx
 
+
 @export
 class Registry(type):
     registry = {}
