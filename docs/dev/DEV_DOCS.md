@@ -55,7 +55,7 @@ type(MyClass)
 When you create an instance of a class, ```__new__(...)``` of the class is
 called. Correspondingly, when you create an instance of a metaclass, 
 ```__new__(...)``` of the metaclass runs. Therefore, we simply need to
-modify ```type__new__(...)``` to run our registration code. Now, python
+modify ```type.__new__(...)``` to run our registration code. Now, python
 does not allow this. But we can do this:
 
 ```
@@ -101,7 +101,7 @@ class DOCXScanner(FileScanner):
         pass
 ```
 
-The registry as an attribute of the metaclass: ```Registry.registry```.
+The registry is an attribute of the metaclass: ```Registry.registry```.
 ```Registry.__new__(...)``` creates the new class ```new_cls```, looks
 at its 'mimetype' class attribute, and adds mimetype:new_cls to the registry.
 
@@ -115,3 +115,9 @@ defined elsewhere: If someone needs a FileScanner for a document type not
 supported by ppf.docmap, he simply defines a new class which will register
 itself in ```Registry.registry```. And from then on, ppf.docmap will be
 able to scan this new document type.
+
+
+## Release Process
+ 
+"[Release-Process](./release-process.md)" describes how we do a release.
+
