@@ -1,12 +1,17 @@
 # -*- coding: utf-8 -*-
 
+from .utils import export
+from .exceptions import OpeningError
+
 from docx import Document
 from docx.opc.constants import RELATIONSHIP_TYPE as RT
 import io
-import urllib
-from .utils import export
-from .exceptions import OpeningError
+import urllib.request
+import urllib.parse
+import urllib.error
 import pdfx
+import regex as re
+from pathlib import Path
 
 
 @export
@@ -78,3 +83,59 @@ class PDFScanner(FileScanner):
         else:
             urls = sum(pdf.get_references_as_dict().values(), [])
             return urls
+
+
+@export
+class MDScanner(FileScanner):
+    mimetype = 'text/markdown'
+    pttrn = re.compile(
+        r"""
+        (?<TEXT>                # TEXT group, including square brackets
+        \[
+            (?>                 # atomic group, perf. improvement
+                [^\[\]]+        # any char except closing square bracket
+                |               # OR
+                (?&TEXT)        # recursively another pattern with opening
+                                # and closing square brackets
+            )*
+        \]
+        )
+        (?:
+            \(
+                (?<URL>         # URL group
+                    \S*?        # non-greedy non-whitespace characters
+                )
+                (?:             # non-capturing group: Need it just because
+                                # we want to mark it as optional at the end
+                    [ ]         # a space
+                    "           # "
+                    (?<TITLE>   # TITLE group
+                        (?:
+                            [^"]        # non-quote chars
+                            |           # OR
+                            (?<=\\)"    # " preceded by \ (escaped quote)
+                        )*?
+                    )
+                    "           # "
+                )?              # title part is optional
+            \)
+        )
+        """, flags=re.X)
+
+    def __init__(self, jabref_keys=None):
+        super().__init__(jabref_keys)
+
+    def __call__(self, link):
+        # 'link' can be a URL or a path:
+        parsed = urllib.parse.urlparse(link)
+        if parsed.scheme in ['file', '']:
+            path = (Path(urllib.parse.unquote(parsed.netloc)) /
+                    Path(urllib.parse.unquote(parsed.path)))
+            with open(path, 'r') as f:
+                text = f.read()
+        else:
+            response = urllib.request.urlopen(link)
+            raw = response.read()
+            text = raw.decode(response.headers.get_content_charset())
+
+        return [match['URL'] for match in self.pttrn.finditer(text)]

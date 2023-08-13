@@ -117,6 +117,12 @@ itself in ```Registry.registry```. And from then on, ppf.docmap will be
 able to scan this new document type.
 
 
+## File Scanners
+
+ppf.docmap features multiple FileScanner classes for various file formats. See
+[filescanners](./filescanners.md) for further information.
+
+
 ## Release Process
  
 "[Release-Process](./release-process.md)" describes how we do a release.
