@@ -16,11 +16,10 @@ class Test_Crawler(unittest.TestCase):
         self.crawl = dmap.Crawler()
 
     def test_docA(self):
-        url = (THIS_DIR / Path('data/Document A.docx')).absolute().as_uri()
+        url = (THIS_DIR / Path('data/Document A.md')).absolute().as_uri()
         self.crawl(url)
 
         self.assertEqual(set(self.crawl.visited_urls),
-                         {((THIS_DIR / 'data' / 'Document A.docx')
+                         {((THIS_DIR / 'data' / 'Document A.md')
                            .absolute().as_uri()),
-                          ((THIS_DIR / 'data' / 'Document C.docx')
-                           .absolute().as_uri())})
+                          './Document%20C.docx'})

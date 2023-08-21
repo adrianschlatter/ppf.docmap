@@ -3,6 +3,9 @@
 import magic
 import urllib
 import graphviz
+import urllib.parse
+from pathlib import Path
+
 from .utils import export
 from .filescanners import FileScanner
 
@@ -42,11 +45,25 @@ class Crawler():
 
 
 @export
-def mimetype(url):
+def mimetype(link):
+    # 'link' can be a URL or a path:
+    parsed = urllib.parse.urlparse(link)
     try:
-        buffer = urllib.request.urlopen(url, timeout=10).read(4096)
-    except urllib.error.URLError:
+        if parsed.scheme in ['file', '']:
+            path = (Path(urllib.parse.unquote(parsed.netloc)) /
+                    Path(urllib.parse.unquote(parsed.path)))
+            with open(path, 'rb') as f:
+                buffer = f.read(4096)
+        else:
+            response = urllib.request.urlopen(link, timeout=10)
+            buffer = response.read(4096)
+    except (FileNotFoundError, urllib.error.URLError):
         return None
     else:
         mime = magic.from_buffer(buffer, mime=True)
+        if mime == 'text/plain':
+            parsed = urllib.parse.urlparse(link)
+            if Path(parsed.path).suffix == '.md':
+                mime = 'text/markdown'
+
         return mime
