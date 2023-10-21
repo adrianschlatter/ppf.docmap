@@ -53,17 +53,19 @@ class DOCXScanner(FileScanner):
         super().__init__(jabref_keys)
 
     def __call__(self, url):
-        try:
+        try:  # let's assume url is a URL and hope for the best
             response = urllib.request.urlopen(url)
+            buffer = io.BytesIO(response.read())
+        except ValueError:  # URL-assumption does not work. Maybe it's a path?
+            buffer = open(urllib.parse.unquote(url), 'rb')
         except urllib.error.URLError:
             raise OpeningError()
-        else:
-            buffer = io.BytesIO(response.read())
-            document = Document(buffer)
-            rels = document.part.rels
-            return [rels[relname].target_ref
-                    for relname in rels
-                    if rels[relname].reltype == RT.HYPERLINK]
+
+        document = Document(buffer)
+        rels = document.part.rels
+        return [rels[relname].target_ref
+                for relname in rels
+                if rels[relname].reltype == RT.HYPERLINK]
 
 
 @export
