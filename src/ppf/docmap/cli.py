@@ -2,7 +2,7 @@
 
 from plumbum import cli
 from pkg_resources import get_distribution
-from ppf.docmap import mimetype, FileScanner
+from ppf.docmap import mimetype, FileScanner, Crawler
 from sys import stdout
 from os import linesep
 
@@ -26,6 +26,15 @@ class DocMappLs(cli.Application):
         refs = scanner(doc)
         for ref in refs:
             stdout.write(ref + linesep)
+
+
+@DocMapp.subcommand('tree')
+class DocMappTree(cli.Application):
+    """hierarchically lists all references found in document"""
+
+    def main(self, doc):
+        crawl = Crawler()
+        crawl(doc)
 
 
 def main():
