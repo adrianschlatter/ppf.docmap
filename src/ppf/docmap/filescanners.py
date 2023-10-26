@@ -141,3 +141,57 @@ class MDScanner(FileScanner):
             text = raw.decode(response.headers.get_content_charset())
 
         return [match['URL'] for match in self.pttrn.finditer(text)]
+
+
+@export
+class HTMLScanner(FileScanner):
+    mimetype = 'text/html'
+    pttrn = re.compile(
+        r"""
+        <a\s+(?:[^>]*?\s+)?href=        # <a href=
+            (?:
+                (?:                     # non-" inside ""
+                    "
+                    (?P<LINK_DQ>        # non-" or escaped "
+                        (?:
+                            [^"]
+                            |
+                            (?<=\\)"
+                         )*
+                    )
+                    "
+                 )
+                 |
+                 (?:                    # non-' inside ''
+                    '
+                    (?P<LINK_SQ>        # non-' or escaped '
+                        (?:
+                            [^']
+                            |
+                            (?<=\\)'
+                        )*
+                    )
+                    '
+                 )
+             )
+        """, flags=re.X)
+
+    def __init__(self, jabref_keys=None):
+        super().__init__(jabref_keys)
+
+    def __call__(self, link):
+        # 'link' can be a URL or a path:
+        parsed = urllib.parse.urlparse(link)
+        if parsed.scheme in ['file', '']:
+            path = (Path(urllib.parse.unquote(parsed.netloc)) /
+                    Path(urllib.parse.unquote(parsed.path)))
+            with open(path, 'r') as f:
+                text = f.read()
+        else:
+            response = urllib.request.urlopen(link)
+            raw = response.read()
+            text = raw.decode(response.headers.get_content_charset())
+
+        return [match.groupdict()['LINK_DQ'] if 'LINK_DQ' in match.groupdict()
+                else match.groupdict()['LINK_SQ']
+                for match in self.pttrn.finditer(text)]
