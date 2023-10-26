@@ -17,9 +17,9 @@ class Test_Crawler(unittest.TestCase):
 
     def test_docA(self):
         url = (THIS_DIR / Path('data/Document A.md')).absolute().as_uri()
-        self.crawl(url)
+        self.crawl(url, depth=1)
 
-        self.assertEqual(set(self.crawl.visited_urls),
+        self.assertEqual(set(self.crawl.tree.visited_urls),
                          {((THIS_DIR / 'data' / 'Document A.md')
                            .absolute().as_uri()),
                           './Document%20C.docx'})

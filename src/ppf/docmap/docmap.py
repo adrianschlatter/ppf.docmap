@@ -3,11 +3,69 @@
 import magic
 import urllib
 import graphviz
-import urllib.parse
+from urllib.parse import urlparse, urljoin
 from pathlib import Path
 
 from .utils import export
 from .filescanners import FileScanner
+
+
+class Node():
+    """A Node of a (document-) Tree"""
+
+    def __init__(self, url, parent=None):
+        if parent is None and urlparse(url).scheme == '':
+            raise ValueError('Root node must be an absolute URL')
+
+        self.url = url
+        self.parent = parent
+        self.children = []
+        if parent is not None:
+            parent.children.append(self)
+
+    def abs_url(self, url=None):
+        """Determine absolute url of the node."""
+        if url is None:
+            if self.parent is None:
+                return self.url
+            else:
+                return urljoin(self.parent.abs_url(), self.url)
+
+        return urljoin(self.abs_url(), url)
+
+    def find_abs_url(self, abs_url, searched=[]):
+        """Find a node by its absolute url."""
+        if self.abs_url() == abs_url:
+            return self
+
+        # stop if we already searched this node:
+        # (can happen if the tree is not a tree but a graph)
+        if self in searched:
+            return None
+
+        for child in self.children:
+            node = child.find_abs_url(abs_url, searched=searched+[self])
+            if node is not None:
+                return node
+
+        return None
+
+    @property
+    def level(self):
+        """Level of the node in the tree."""
+        if self.parent is None:
+            return 0
+        else:
+            return self.parent.level + 1
+
+    @property
+    def visited_urls(self):
+        """List of all visited URLs."""
+        if len(self.children) == 0:
+            return [self.url]
+        else:
+            return [self.url] + \
+                    sum([child.visited_urls for child in self.children], [])
 
 
 @export
@@ -20,34 +78,46 @@ class Crawler():
         for mime in FileScanner.registry.keys():
             self.scan_reg[mime] = FileScanner.registry[mime]()
 
-    def __call__(self, url):
-        url_hash = str(0)
-        self.visited_urls = [url]
-        self.dot.node(url_hash)
-        scan_func = self.scan_reg.get(mimetype(url), lambda url: [])
-        self._crawl(scan_func(url), origin=url_hash, indent=4)
+    def __call__(self, abs_url, depth=None, action=lambda node: None):
+        self.tree = Node(abs_url, parent=None)
+        action(self.tree)
 
-    def _crawl(self, urls, origin='', indent=0):
-        for url in urls:
-            print(' '*indent + url)
-            if url in self.visited_urls:
-                url_hash = str(self.visited_urls.index(url))
-                self.dot.edge(origin, url_hash)
-                continue
+        if depth != 0:
+            new_depth = depth - 1 if depth is not None else None
+            # find correct scanner for the mimetype:
+            scan = self.scan_reg.get(mimetype(abs_url), lambda abs_url: [])
+            # scan and crawl:
+            for link in scan(abs_url):
+                self._crawl(link, origin=self.tree,
+                            depth=new_depth, action=action)
 
-            url_hash = str(len(self.visited_urls))
-            self.visited_urls.append(url)
-            self.dot.node(url_hash)
-            self.dot.edge(origin, url_hash)
+        return self.tree
 
-            scan_func = self.scan_reg.get(mimetype(url), lambda url: [])
-            self._crawl(scan_func(url), origin=url_hash, indent=indent + 4)
+    def _crawl(self, url, origin, depth, action):
+        abs_url = origin.abs_url(url)
+        node = self.tree.find_abs_url(abs_url)
+
+        if node is not None:  # node already exists in the tree
+            origin.children.append(node)
+            action(node)
+            return
+
+        node = Node(url, parent=origin)
+        action(node)
+
+        if depth != 0:
+            new_depth = depth - 1 if depth is not None else None
+            # find correct scanner for the mimetype:
+            scan = self.scan_reg.get(mimetype(abs_url), lambda abs_url: [])
+            # scan and crawl:
+            for link in scan(abs_url):
+                self._crawl(link, origin=node, depth=new_depth, action=action)
 
 
 @export
 def mimetype(link):
     # 'link' can be a URL or a path:
-    parsed = urllib.parse.urlparse(link)
+    parsed = urlparse(link)
     try:
         if parsed.scheme in ['file', '']:
             path = (Path(urllib.parse.unquote(parsed.netloc)) /
