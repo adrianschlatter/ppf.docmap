@@ -2,7 +2,6 @@
 
 import magic
 import urllib
-import graphviz
 from urllib.parse import urlparse, urljoin
 from pathlib import Path
 
@@ -67,6 +66,16 @@ class Node():
             return [self.url] + \
                     sum([child.visited_urls for child in self.children], [])
 
+    @property
+    def index(self):
+        """Index of the node in the tree."""
+        return [] if self.parent is None else \
+            self.parent.index + [self.parent.children.index(self)]
+
+    def __getitem__(self, index):
+        """Get a child node by its index."""
+        return self if index == [] else self.children[index[0]][index[1:]]
+
 
 @export
 class Crawler():
@@ -74,7 +83,6 @@ class Crawler():
 
     def __init__(self):
         self.visited_urls = []
-        self.dot = graphviz.Digraph()
         for mime in FileScanner.registry.keys():
             self.scan_reg[mime] = FileScanner.registry[mime]()
 

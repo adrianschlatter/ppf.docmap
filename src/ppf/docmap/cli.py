@@ -6,6 +6,7 @@ from ppf.docmap import mimetype, FileScanner, Crawler
 from sys import stdout
 from os import linesep, getcwd
 from urllib.parse import urlparse, urljoin, quote
+import graphviz
 
 
 class DocMapp(cli.Application):
@@ -35,8 +36,21 @@ class DocMappTree(cli.Application):
     level = cli.SwitchAttr(['L', 'level'], int, default=None,
                            help='Descend only level directories deep.')
     abs_urls = cli.Flag(['f'], help='Print the absolute URL of each link')
+    graph = cli.Flag(['g', 'graphviz'], help='Output in graphviz format')
 
     def main(self, doc):
+        # closure to create graphviz graph:
+        def to_graphviz(node):
+            if self.abs_urls:
+                dot.node(str(node.index), node.abs_url())
+            else:
+                dot.node(str(node.index), node.url)
+
+            if node.parent:
+                dot.edge(str(node.parent.index), str(node.index))
+            for child in node.children:
+                to_graphviz(child)
+
         parsed = urlparse(doc)
         if parsed.scheme == '':
             # convert path to URL:
@@ -44,14 +58,24 @@ class DocMappTree(cli.Application):
 
         crawl = Crawler()
 
-        if self.abs_urls:
+        if self.graph:       # no live printing, will create a graph later
             def action(node):
-                print('    ' * node.level + node.abs_url())
-        else:
-            def action(node):
-                print('    ' * node.level + node.url)
+                pass
+        else:                                       # do live printing
+            if self.abs_urls:                       # ... of absolute urls
+                def action(node):
+                    stdout.write('    ' * node.level +
+                                 node.abs_url() + linesep)
+            else:                                   # ... of relative urls
+                def action(node):
+                    stdout.write('    ' * node.level + node.url + linesep)
 
         crawl(url, depth=self.level, action=action)
+
+        if self.graph:      # create graphviz graph
+            dot = graphviz.Digraph()
+            to_graphviz(crawl.tree)
+            stdout.write(dot.source)
 
 
 def main():
