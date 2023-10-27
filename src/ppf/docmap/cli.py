@@ -38,9 +38,16 @@ class DocMappTree(cli.Application):
     abs_urls = cli.Flag(['f'], help='Print the absolute URL of each link')
     graph = cli.Flag(['g', 'graphviz'], help='Output in graphviz format')
 
-    def main(self, doc):
+    def main(self, url):
+        indices_graphed = []
+
         # closure to create graphviz graph:
         def to_graphviz(node):
+            if node.index in indices_graphed:
+                return
+
+            indices_graphed.append(node.index)
+
             if self.abs_urls:
                 dot.node(str(node.index), node.abs_url())
             else:
@@ -51,10 +58,10 @@ class DocMappTree(cli.Application):
             for child in node.children:
                 to_graphviz(child)
 
-        parsed = urlparse(doc)
+        parsed = urlparse(url)
         if parsed.scheme == '':
             # convert path to URL:
-            url = urljoin(f'file://{getcwd()}/', quote(doc))
+            url = urljoin(f'file://{getcwd()}/', quote(url))
 
         crawl = Crawler()
 
