@@ -1,8 +1,5 @@
 # -*- coding: utf-8 -*-
 
-from .utils import export
-from .exceptions import OpeningError
-
 from docx import Document
 from docx.opc.constants import RELATIONSHIP_TYPE as RT
 import io
@@ -12,6 +9,12 @@ import urllib.error
 import pdfx
 import regex as re
 from pathlib import Path
+import logging
+
+from .utils import export
+from .exceptions import OpeningError
+
+logger = logging.getLogger('.filescanners')
 
 
 @export
@@ -53,14 +56,18 @@ class DOCXScanner(FileScanner):
         super().__init__(jabref_keys)
 
     def __call__(self, url):
+        logger.info('Scanning %s', url)
         try:  # let's assume url is a URL and hope for the best
+            logger.info('Opening %s', url)
             response = urllib.request.urlopen(url)
             buffer = io.BytesIO(response.read())
         except ValueError:  # URL-assumption does not work. Maybe it's a path?
+            logger.info('Opening %s', urllib.parse.unquote(url))
             buffer = open(urllib.parse.unquote(url), 'rb')
         except urllib.error.URLError:
             raise OpeningError()
 
+        logger.info('Parsing %s', url)
         document = Document(buffer)
         rels = document.part.rels
         return [rels[relname].target_ref
@@ -76,9 +83,11 @@ class PDFScanner(FileScanner):
         super().__init__(jabref_keys)
 
     def __call__(self, url):
+        logger.info('Scanning %s', url)
         if url.find('file:') == 0:
             url = urllib.parse.unquote(url[5:])
         try:
+            logger.info('Opening %s', url)
             pdf = pdfx.PDFx(url)
         except pdfx.DownloadError:
             raise OpeningError()
@@ -128,14 +137,17 @@ class MDScanner(FileScanner):
         super().__init__(jabref_keys)
 
     def __call__(self, link):
+        logger.info('Scanning %s', link)
         # 'link' can be a URL or a path:
         parsed = urllib.parse.urlparse(link)
         if parsed.scheme in ['file', '']:
             path = (Path(urllib.parse.unquote(parsed.netloc)) /
                     Path(urllib.parse.unquote(parsed.path)))
+            logger.info('Opening %s', path)
             with open(path, 'r') as f:
                 text = f.read()
         else:
+            logger.info('Opening %s', link)
             response = urllib.request.urlopen(link)
             raw = response.read()
             text = raw.decode(response.headers.get_content_charset())
@@ -180,15 +192,18 @@ class HTMLScanner(FileScanner):
         super().__init__(jabref_keys)
 
     def __call__(self, link):
+        logger.info('Scanning %s', link)
         # 'link' can be a URL or a path:
         parsed = urllib.parse.urlparse(link)
         if parsed.scheme in ['file', '']:
             path = (Path(urllib.parse.unquote(parsed.netloc)) /
                     Path(urllib.parse.unquote(parsed.path)))
+            logger.info('Opening %s', path)
             with open(path, 'r') as f:
                 text = f.read()
         else:
             response = urllib.request.urlopen(link)
+            logger.info('Opening %s', link)
             raw = response.read()
             text = raw.decode(response.headers.get_content_charset())
 

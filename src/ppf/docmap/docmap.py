@@ -4,9 +4,14 @@ import magic
 import urllib
 from urllib.parse import urlparse, urljoin
 from pathlib import Path
+import logging
 
 from .utils import export
 from .filescanners import FileScanner
+from .exceptions import OpeningError
+
+
+logger = logging.getLogger('.docmap')
 
 
 class Node():
@@ -87,13 +92,19 @@ class Crawler():
             self.scan_reg[mime] = FileScanner.registry[mime]()
 
     def __call__(self, abs_url, depth=None, action=lambda node: None):
+        logger.info('Crawling %s', abs_url)
         self.tree = Node(abs_url, parent=None)
         action(self.tree)
 
         if depth != 0:
             new_depth = depth - 1 if depth is not None else None
             # find correct scanner for the mimetype:
-            scan = self.scan_reg.get(mimetype(abs_url), lambda abs_url: [])
+            try:
+                mime = mimetype(abs_url)
+            except OpeningError:
+                pass
+            logger.info('Mimetype of %s is %s', abs_url, mime)
+            scan = self.scan_reg.get(mime, lambda abs_url: [])
             # scan and crawl:
             for link in scan(abs_url):
                 self._crawl(link, origin=self.tree,
@@ -103,6 +114,7 @@ class Crawler():
 
     def _crawl(self, url, origin, depth, action):
         abs_url = origin.abs_url(url)
+        logger.info('Crawling %s', abs_url)
         node = self.tree.find_abs_url(abs_url)
 
         if node is not None:  # node already exists in the tree
@@ -116,7 +128,12 @@ class Crawler():
         if depth != 0:
             new_depth = depth - 1 if depth is not None else None
             # find correct scanner for the mimetype:
-            scan = self.scan_reg.get(mimetype(abs_url), lambda abs_url: [])
+            try:
+                mime = mimetype(abs_url)
+            except OpeningError:
+                pass
+            logger.info('Mimetype of %s is %s', abs_url, mime)
+            scan = self.scan_reg.get(mime, lambda abs_url: [])
             # scan and crawl:
             for link in scan(abs_url):
                 self._crawl(link, origin=node, depth=new_depth, action=action)
@@ -136,7 +153,8 @@ def mimetype(link):
             response = urllib.request.urlopen(link, timeout=10)
             buffer = response.read(4096)
     except (FileNotFoundError, urllib.error.URLError):
-        return None
+        logger.info('Could not open %s', link)
+        raise OpeningError()
     else:
         mime = magic.from_buffer(buffer, mime=True)
         if mime == 'text/plain':

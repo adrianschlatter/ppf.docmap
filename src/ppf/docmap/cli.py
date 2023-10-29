@@ -3,10 +3,16 @@
 from plumbum import cli
 from pkg_resources import get_distribution
 from ppf.docmap import mimetype, FileScanner, Crawler
-from sys import stdout
+from sys import stdout, stderr
 from os import linesep, getcwd
 from urllib.parse import urlparse, urljoin, quote
 import graphviz
+import logging
+
+from ppf.docmap.exceptions import OpeningError
+
+
+logger = logging.getLogger('.cli')
 
 
 class DocMapp(cli.Application):
@@ -14,15 +20,27 @@ class DocMapp(cli.Application):
     VERSION = get_distribution('ppf-docmap').version
     verbose = cli.Flag(['v', 'verbose'])
 
+    def main(self):
+        if self.verbose:
+            logging.basicConfig(level=logging.INFO)
+
 
 @DocMapp.subcommand('ls')
 class DocMappLs(cli.Application):
     """lists all references found in document"""
 
     def main(self, doc):
-        # instantiate correct FileScanner class:
-        scanner = FileScanner.registry[mimetype(doc)]()
+        logger.info('Scanning %s', doc)
+        try:
+            mime = mimetype(doc)
+        except OpeningError:
+            stderr.write(f'File not found: {doc}' + linesep)
+            exit(1)
 
+        logger.info('mimetype(%s): %s', doc, mime)
+        # instantiate correct FileScanner class:
+        scanner_class = FileScanner.registry.get(mime, None)
+        scanner = scanner_class() if scanner_class else lambda abs_url: []
         # scan document:
         refs = scanner(doc)
         for ref in refs:
