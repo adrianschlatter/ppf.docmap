@@ -98,7 +98,9 @@ class DocMappTree(cli.Application):
         crawl(url, depth=self.level, action=action)
 
         if self.graph:      # create graphviz graph
-            dot = graphviz.Digraph()
+            dot = graphviz.Digraph('Document Map')
+            dot.attr(layout='neato')
+            dot.attr(overlap='false')
             to_graphviz(crawl.tree)
             stdout.write(dot.source)
 
