@@ -53,8 +53,16 @@ class DocMappTree(cli.Application):
 
     level = cli.SwitchAttr(['L', 'level'], int, default=None,
                            help='Descend only level directories deep.')
-    abs_urls = cli.Flag(['f'], help='Print the absolute URL of each link')
     graph = cli.Flag(['g', 'graphviz'], help='Output in graphviz format')
+    naming = 'url'
+
+    @cli.switch(['f'])
+    def set_naming_abs_url(self):
+        self.naming = 'abs_url'
+
+    @cli.switch(['n', 'filename'])
+    def set_naming_filename(self):
+        self.naming = 'filename'
 
     def main(self, url):
         indices_graphed = []
@@ -66,10 +74,7 @@ class DocMappTree(cli.Application):
 
             indices_graphed.append(node.index)
 
-            if self.abs_urls:
-                dot.node(str(node.index), node.abs_url())
-            else:
-                dot.node(str(node.index), node.url)
+            dot.node(str(node.index), getattr(node, self.naming)())
 
             if node.parent:
                 dot.edge(str(node.parent.index), str(node.index))
@@ -86,14 +91,10 @@ class DocMappTree(cli.Application):
         if self.graph:       # no live printing, will create a graph later
             def action(node):
                 pass
-        else:                                       # do live printing
-            if self.abs_urls:                       # ... of absolute urls
-                def action(node):
-                    stdout.write('    ' * node.level +
-                                 node.abs_url() + linesep)
-            else:                                   # ... of relative urls
-                def action(node):
-                    stdout.write('    ' * node.level + node.url + linesep)
+        else:                # do live printing
+            def action(node):
+                stdout.write('    ' * node.level +
+                             getattr(node, self.naming)() + linesep)
 
         crawl(url, depth=self.level, action=action)
 

@@ -21,21 +21,30 @@ class Node():
         if parent is None and urlparse(url).scheme == '':
             raise ValueError('Root node must be an absolute URL')
 
-        self.url = url
+        self._url = url
         self.parent = parent
         self.children = []
         if parent is not None:
             parent.children.append(self)
 
+    # Impremented as METHOD, not property, so it has the same signature
+    # as abs_url() and filename(). Useful in .cli.DocMappTree.main().
+    def url(self):
+        return self._url
+
     def abs_url(self, url=None):
         """Determine absolute url of the node."""
         if url is None:
             if self.parent is None:
-                return self.url
+                return self._url
             else:
-                return urljoin(self.parent.abs_url(), self.url)
+                return urljoin(self.parent.abs_url(), self._url)
 
         return urljoin(self.abs_url(), url)
+
+    def filename(self):
+        """Filename of the node."""
+        return Path(urlparse(self._url).path).name
 
     def find_abs_url(self, abs_url, searched=[]):
         """Find a node by its absolute url."""
@@ -66,9 +75,9 @@ class Node():
     def visited_urls(self):
         """List of all visited URLs."""
         if len(self.children) == 0:
-            return [self.url]
+            return [self._url]
         else:
-            return [self.url] + \
+            return [self._url] + \
                     sum([child.visited_urls for child in self.children], [])
 
     @property
