@@ -132,11 +132,13 @@ class Crawler():
                 mime = mimetype(abs_url)
             except OpeningError:
                 pass
-            logger.info('Mimetype of %s is %s', abs_url, mime)
-            scan = self.scan_reg.get(mime, lambda abs_url: [])
-            # scan and crawl:
-            for link in scan(abs_url):
-                self._crawl(link, origin=node, depth=new_depth, action=action)
+            else:
+                logger.info('Mimetype of %s is %s', abs_url, mime)
+                scan = self.scan_reg.get(mime, lambda abs_url: [])
+                # scan and crawl:
+                for link in scan(abs_url):
+                    self._crawl(link, origin=node,
+                                depth=new_depth, action=action)
 
 
 @export
